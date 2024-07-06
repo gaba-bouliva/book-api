@@ -1,6 +1,7 @@
 package api
 
 import (
+	"book-api/services/book"
 	"database/sql"
 	"log"
 	"net/http"
@@ -33,12 +34,14 @@ func NewServer(db *sql.DB, Addr string) *APIServer{
 func (api *APIServer) Run() error {
 	server := http.Server{
 		Addr: api.Addr,
-		Handler: api.routes(),	
+		Handler: api.routes(api.DB),	
 	}
+	
+	log.Println("API listening on port ", api.Addr)
 	return server.ListenAndServe()
 }
 
-func (api *APIServer) routes() http.Handler {
+func (api *APIServer) routes(db *sql.DB) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
@@ -53,7 +56,12 @@ func (api *APIServer) routes() http.Handler {
 
 	apiRouter 	:= chi.NewRouter()
 
-	r.Mount("/api", apiRouter)
+	
+	bookStore := book.NewStore(db)
+	bookHandler := book.NewBookHandler(bookStore)
+	bookHandler.RegisterRoutes(apiRouter)
+	
+	r.Mount("/api/", apiRouter)
 
-	return apiRouter	
+	return r	
 }
